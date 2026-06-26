@@ -1,0 +1,8 @@
+.env
+venv/
+__pycache__/
+*.pyc
+data/reports/
+logs/
+data/audit_results.json
+data/leads.csv

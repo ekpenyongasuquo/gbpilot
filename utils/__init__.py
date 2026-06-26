@@ -1,0 +1,1 @@
+from .gbp_scraper import scrape_businesses
