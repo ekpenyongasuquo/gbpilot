@@ -16,11 +16,36 @@ MODEL = os.getenv("GEMINI_MODEL")
 def get_access_token():
     """
     Gets access token using multiple fallback methods:
-    1. Service account JSON (Render - if configured)
-    2. Metadata server (Cloud Run/GCE)
+    1. Personal OAuth refresh token (Render - primary)
+    2. Service account JSON (backup)
     3. Application default credentials (local)
     """
-    # Method 1: Try service account JSON from environment
+    # Method 1: Personal OAuth refresh token
+    refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+
+    if refresh_token and client_id and client_secret:
+        try:
+            response = requests.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": client_id,
+                    "client_secret": client_secret
+                }
+            )
+            result = response.json()
+            if "access_token" in result:
+                print("[AUTH] Personal OAuth token refreshed successfully")
+                return result["access_token"]
+            else:
+                print(f"[AUTH] OAuth refresh failed: {result}")
+        except Exception as e:
+            print(f"[AUTH] OAuth method failed: {e}")
+
+    # Method 2: Service account JSON
     sa_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
     if sa_json:
         try:
@@ -37,20 +62,7 @@ def get_access_token():
         except Exception as e:
             print(f"[AUTH] Service account method failed: {e}")
 
-    # Method 2: Try metadata server (works on GCE/Cloud Run)
-    try:
-        response = requests.get(
-            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
-            headers={"Metadata-Flavor": "Google"},
-            timeout=2
-        )
-        if response.status_code == 200:
-            print("[AUTH] Metadata server credentials loaded successfully")
-            return response.json()["access_token"]
-    except Exception as e:
-        print(f"[AUTH] Metadata server method failed: {e}")
-
-    # Method 3: Application default credentials (local Windows)
+    # Method 3: Application default credentials (local)
     try:
         credentials, _ = google.auth.default()
         auth_request = google.auth.transport.requests.Request()
