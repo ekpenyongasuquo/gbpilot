@@ -1,10 +1,10 @@
 import os
 import json
 import datetime
+import requests
 from dotenv import load_dotenv
 import google.auth
 import google.auth.transport.requests
-import requests
 
 load_dotenv()
 
@@ -14,10 +14,53 @@ MODEL = os.getenv("GEMINI_MODEL")
 
 
 def get_access_token():
-    credentials, _ = google.auth.default()
-    auth_request = google.auth.transport.requests.Request()
-    credentials.refresh(auth_request)
-    return credentials.token
+    """
+    Gets access token using multiple fallback methods:
+    1. Service account JSON (Render - if configured)
+    2. Metadata server (Cloud Run/GCE)
+    3. Application default credentials (local)
+    """
+    # Method 1: Try service account JSON from environment
+    sa_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    if sa_json:
+        try:
+            import google.oauth2.service_account as sa
+            creds_dict = json.loads(sa_json)
+            credentials = sa.Credentials.from_service_account_info(
+                creds_dict,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            )
+            auth_request = google.auth.transport.requests.Request()
+            credentials.refresh(auth_request)
+            print("[AUTH] Service account credentials loaded successfully")
+            return credentials.token
+        except Exception as e:
+            print(f"[AUTH] Service account method failed: {e}")
+
+    # Method 2: Try metadata server (works on GCE/Cloud Run)
+    try:
+        response = requests.get(
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+            headers={"Metadata-Flavor": "Google"},
+            timeout=2
+        )
+        if response.status_code == 200:
+            print("[AUTH] Metadata server credentials loaded successfully")
+            return response.json()["access_token"]
+    except Exception as e:
+        print(f"[AUTH] Metadata server method failed: {e}")
+
+    # Method 3: Application default credentials (local Windows)
+    try:
+        credentials, _ = google.auth.default()
+        auth_request = google.auth.transport.requests.Request()
+        credentials.refresh(auth_request)
+        print("[AUTH] Application default credentials loaded successfully")
+        return credentials.token
+    except Exception as e:
+        print(f"[AUTH] ADC method failed: {e}")
+
+    raise Exception("All authentication methods failed")
 
 
 def audit_business(business: dict) -> dict:
@@ -81,8 +124,8 @@ IMPORTANT: Return raw JSON only. No ```json tags. No markdown. No explanation be
 
     # Debug: show raw response if something goes wrong
     if "candidates" not in result:
-        print(f"  Unexpected API response: {result}")
-        raise ValueError("No candidates in API response")
+        print(f"[AUDIT] Unexpected API response: {result}")
+        raise ValueError(f"No candidates in API response: {result}")
 
     raw_text = result["candidates"][0]["content"]["parts"][0]["text"]
 
@@ -108,7 +151,7 @@ IMPORTANT: Return raw JSON only. No ```json tags. No markdown. No explanation be
     try:
         audit = json.loads(clean)
     except json.JSONDecodeError as e:
-        print(f"  Raw response was: {clean[:300]}")
+        print(f"[AUDIT] Raw response was: {clean[:300]}")
         raise e
 
     return audit
@@ -162,7 +205,7 @@ if __name__ == "__main__":
     log_agent_decision(test_business["name"], audit)
 
     print("\nSUMMARY FOR OWNER:")
-    print(f"Visibility Score:              {audit.get('visibility_score')}/100")
-    print(f"Monthly Revenue Lost:          ${audit.get('estimated_monthly_revenue_lost_usd'):,}")
-    print(f"Top Fix:                       {audit.get('top_3_fixes', [''])[0]}")
-    print(f"Summary:                       {audit.get('audit_summary')}")
+    print(f"Visibility Score:     {audit.get('visibility_score')}/100")
+    print(f"Monthly Revenue Lost: ${audit.get('estimated_monthly_revenue_lost_usd'):,}")
+    print(f"Top Fix:              {audit.get('top_3_fixes', [''])[0]}")
+    print(f"Summary:              {audit.get('audit_summary')}")
