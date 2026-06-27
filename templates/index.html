@@ -395,9 +395,9 @@
   function startTrial() {
     // Paystack checkout - replace with your real Paystack public key
     const handler = PaystackPop.setup({
-      key: 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY',
+      key: 'pk_test_2df39f6f3c2c84e510f0962b65e7af48931b03a3',
       email: document.getElementById('businessEmail').value || 'customer@gbpilot.com',
-      amount: 7900 * 100, // $79 in kobo equivalent
+      amount: 7900, // $79 in USD cents
       currency: 'USD',
       ref: 'GBP_' + Math.floor(Math.random() * 1000000000),
       callback: function(response) {
