@@ -393,23 +393,23 @@
   }
 
   function startTrial() {
-    // Paystack checkout - replace with your real Paystack public key
+    const email = document.getElementById('businessEmail').value || 'test@gbpilot.com';
+    
     const handler = PaystackPop.setup({
-      key: 'pk_test_2df39f6f3c2c84e510f0962b65e7af48931b03a3',
-      email: document.getElementById('businessEmail').value || 'customer@gbpilot.com',
-      amount: 7900 * 100,
-      currency: 'NGN',
-      ref: 'GBP_' + Math.floor(Math.random() * 1000000000),
-      callback: function(response) {
-        alert('Payment successful! Reference: ' + response.reference);
-        window.location.href = '/dashboard';
-      },
-      onClose: function() {
-        console.log('Payment window closed');
-      }
+        key: 'pk_test_2df39f6f3c2c84e510f0962b65e7af48931b03a3',
+        email: email,
+        amount: 100 * 100,
+        currency: 'NGN',
+        ref: 'GBP_' + Math.floor(Math.random() * 1000000000),
+        callback: function(response) {
+            alert('Payment successful! Your 7-day trial has started. Reference: ' + response.reference);
+        },
+        onClose: function() {
+            console.log('Payment window closed');
+        }
     });
     handler.openIframe();
-  }
+}
 </script>
 
 <!-- Paystack -->
