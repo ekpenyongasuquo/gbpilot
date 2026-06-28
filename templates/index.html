@@ -333,7 +333,6 @@
       return;
     }
 
-    // Show loading
     document.querySelector('.btn-audit').disabled = true;
     document.querySelector('.btn-audit').textContent = 'Running AI Audit...';
     document.getElementById('loading').style.display = 'block';
@@ -348,12 +347,15 @@
 
       const data = await response.json();
 
-      // Hide loading
       document.getElementById('loading').style.display = 'none';
       document.querySelector('.btn-audit').disabled = false;
       document.querySelector('.btn-audit').textContent = '🚀 Run My Free AI Audit';
 
-      // Show results
+      if (data.error) {
+        alert('Audit failed. Please try again later.');
+        return;
+      }
+
       displayResult(data, name);
 
     } catch (err) {
@@ -366,27 +368,26 @@
 
   function displayResult(data, businessName) {
     document.getElementById('resultTitle').textContent =
-      `📊 Audit Complete: ${businessName}`;
+      '📊 Audit Complete: ' + businessName;
 
-    document.getElementById('resultMetrics').innerHTML = `
-      <div class="result-metric">
-        <div class="val" style="color:#f97316;">${data.visibility_score}/100</div>
-        <div class="lbl">Visibility Score</div>
-      </div>
-      <div class="result-metric">
-        <div class="val" style="color:#ef4444;">$${data.revenue_lost.toLocaleString()}</div>
-        <div class="lbl">Monthly Revenue Lost</div>
-      </div>
-      <div class="result-metric">
-        <div class="val" style="color:#3b82f6;">${data.searches_lost}</div>
-        <div class="lbl">Searches Missed</div>
-      </div>
-    `;
+    document.getElementById('resultMetrics').innerHTML =
+      '<div class="result-metric">' +
+        '<div class="val" style="color:#f97316;">' + data.visibility_score + '/100</div>' +
+        '<div class="lbl">Visibility Score</div>' +
+      '</div>' +
+      '<div class="result-metric">' +
+        '<div class="val" style="color:#ef4444;">$' + data.revenue_lost.toLocaleString() + '</div>' +
+        '<div class="lbl">Monthly Revenue Lost</div>' +
+      '</div>' +
+      '<div class="result-metric">' +
+        '<div class="val" style="color:#3b82f6;">' + data.searches_lost + '</div>' +
+        '<div class="lbl">Searches Missed</div>' +
+      '</div>';
 
     document.getElementById('resultIssues').innerHTML =
-      data.issues.map(i =>
-        `<div class="issue-item">⚠️ ${i}</div>`
-      ).join('');
+      data.issues.map(function(i) {
+        return '<div class="issue-item">⚠️ ' + i + '</div>';
+      }).join('');
 
     document.getElementById('resultBox').style.display = 'block';
     document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth' });
@@ -394,26 +395,27 @@
 
   function startTrial() {
     const email = document.getElementById('businessEmail').value || 'test@gbpilot.com';
-    
-    const handler = PaystackPop.setup({
-        key: 'pk_test_2df39f6f3c2c84e510f0962b65e7af48931b03a3',
-        email: email,
-        amount: 100 * 100,
-        currency: 'NGN',
-        ref: 'GBP_' + Math.floor(Math.random() * 1000000000),
-        callback: function(response) {
-            alert('Payment successful! Your 7-day trial has started. Reference: ' + response.reference);
-        },
-        onClose: function() {
-            console.log('Payment window closed');
-        }
+
+    const paystackInstance = new PaystackPop();
+
+    paystackInstance.newTransaction({
+      key: 'pk_test_2df39f6f3c2c84e510f0962b65e7af48931b03a3',
+      email: email,
+      amount: 10000,
+      currency: 'NGN',
+      ref: 'GBP' + Math.floor(Math.random() * 1000000000),
+      onSuccess: function(response) {
+        alert('Payment successful! Your 7-day trial has started. Reference: ' + response.reference);
+      },
+      onCancel: function() {
+        console.log('Payment window closed');
+      }
     });
-    handler.openIframe();
-}
+  }
 </script>
 
-<!-- Paystack -->
-<script src="https://js.paystack.co/v1/inline.js"></script>
+<!-- Paystack v2 -->
+<script src="https://js.paystack.co/v2/inline.js"></script>
 
 </body>
 </html>
